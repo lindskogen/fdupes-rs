@@ -1,13 +1,16 @@
 extern crate blake2;
+extern crate unbytify;
 extern crate walkdir;
 
 use std::io;
 use std::env;
 use std::io::prelude::*;
 use std::fs::File;
-use walkdir::WalkDir;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+use walkdir::WalkDir;
+use unbytify::*;
 use blake2::{Blake2b, Digest};
 
 fn hash_file(path: &Path) -> io::Result<Vec<u8>> {
@@ -69,9 +72,10 @@ fn main() {
         let length = files.len();
         if length > 1 {
             if let Some(size) = hash_sizes.get(hash) {
-                let duplicate_sum = (*size as usize) * (length - 1);
+                let duplicate_sum = (*size) * (length as u64 - 1);
                 total += duplicate_sum;
-                println!("Duplicates: {} bytes", duplicate_sum);
+                let (num, unit) = bytify(duplicate_sum);
+                println!("Duplicates: {} {}", num, unit);
                 for file in files.iter() {
                     println!("{}", file.display());
                 }
@@ -81,6 +85,7 @@ fn main() {
     }
 
     if total > 0 {
-        println!("Total: {} bytes duplicated", total);
+        let (num, unit) = bytify(total);
+        println!("Total: {} {} duplicated", num, unit);
     }
 }

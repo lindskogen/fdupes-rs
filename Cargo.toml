@@ -6,3 +6,4 @@ authors = ["Johan Lindskogen <johan.lindskogen@gmail.com>"]
 [dependencies]
 blake2 = "0.5.2"
 walkdir = "2"
+unbytify = "0.1.1"
