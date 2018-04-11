@@ -6,4 +6,3 @@ authors = ["Johan Lindskogen <johan.lindskogen@gmail.com>"]
 [dependencies]
 blake2 = "0.5.2"
 walkdir = "2"
-hex-slice = "0.1.0"
