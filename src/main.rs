@@ -52,9 +52,11 @@ fn main() {
         });
     }
 
+    let mut duplicate_memory: u64 = 0;
     for (_size, files) in sizes.into_iter() {
         if files.len() > 1 {
             println!("Considering as duplicates (by size): {:?}", files);
+            duplicate_memory = duplicate_memory + _size * (files.len() as u64 - 1);
             for path in files {
                 if let Ok(digest) = hash_file(&path) {
                     let list = hashes.entry(digest).or_insert(vec![]);
@@ -66,6 +68,8 @@ fn main() {
             // println!("{} {:?}", size, files);
         }
     }
+
+    println!("Removeable size: {:?}", duplicate_memory);
 
     for (hash, files) in hashes.iter() {
         println!("{:x} {:?}", (&hash[0..10]).as_hex(), files);
