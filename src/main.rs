@@ -39,8 +39,7 @@ where
 fn main() {
     let args: Vec<String> = env::args().collect();
     let args_slice = &args[1..];
-    let mut hashes: HashMap<Vec<u8>, Vec<PathBuf>> = HashMap::default();
-    let mut hash_sizes: HashMap<Vec<u8>, u64> = HashMap::default();
+    let mut hashes: HashMap<Vec<u8>, (u64, Vec<PathBuf>)> = HashMap::default();
     let mut sizes: HashMap<u64, Vec<PathBuf>> = HashMap::default();
 
     for argument in args_slice.iter() {
@@ -55,9 +54,8 @@ fn main() {
             // println!("Considering as duplicates (by size): {:?}", files);
             for path in files {
                 if let Ok(digest) = hash_file(&path) {
-                    hash_sizes.insert(digest.clone(), size);
-                    let list = hashes.entry(digest).or_insert(vec![]);
-                    list.push(path);
+                    let list = hashes.entry(digest).or_insert((size, vec![]));
+                    list.1.push(path);
                 }
             }
         } else {
@@ -68,19 +66,17 @@ fn main() {
 
     let mut total = 0;
 
-    for (hash, files) in hashes.iter() {
+    for (_hash, &(size, ref files)) in hashes.iter() {
         let length = files.len();
         if length > 1 {
-            if let Some(size) = hash_sizes.get(hash) {
-                let duplicate_sum = (*size) * (length as u64 - 1);
-                total += duplicate_sum;
-                let (num, unit) = bytify(duplicate_sum);
-                println!("Duplicates: {} {}", num, unit);
-                for file in files.iter() {
-                    println!("{}", file.display());
-                }
-                println!();
+            let duplicate_sum = size * (length as u64 - 1);
+            total += duplicate_sum;
+            let (num, unit) = bytify(duplicate_sum);
+            println!("Duplicates: {} {}", num, unit);
+            for file in files.iter() {
+                println!("{}", file.display());
             }
+            println!();
         }
     }
 
