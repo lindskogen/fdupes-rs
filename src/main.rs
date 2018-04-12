@@ -71,12 +71,12 @@ fn main() {
         if length > 1 {
             let duplicate_sum = size * (length as u64 - 1);
             total += duplicate_sum;
-            let (num, unit) = bytify(duplicate_sum);
-            println!("Duplicates: {} {}", num, unit);
-            for file in files.iter() {
-                println!("{}", file.display());
-            }
-            println!();
+            // let (num, unit) = bytify(duplicate_sum);
+            // println!("Duplicates: {} {}", num, unit);
+            // for file in files.iter() {
+            //     println!("{}", file.display());
+            // }
+            // println!();
         }
     }
 
