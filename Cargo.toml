@@ -7,3 +7,4 @@ authors = ["Johan Lindskogen <johan.lindskogen@gmail.com>"]
 blake2 = "0.5.2"
 walkdir = "2"
 unbytify = "0.1.1"
+rayon = "1.0"

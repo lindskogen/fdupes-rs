@@ -1,4 +1,5 @@
 extern crate blake2;
+extern crate rayon;
 extern crate unbytify;
 extern crate walkdir;
 
@@ -12,15 +13,17 @@ use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 use unbytify::*;
 use blake2::{Blake2b, Digest};
+use rayon::prelude::*;
 
 const BUFFER_SIZE: usize = 4096;
 
-fn hash_file(path: &Path, buffer: &mut [u8]) -> io::Result<Vec<u8>> {
+fn hash_file(path: &Path) -> io::Result<Vec<u8>> {
+    let mut buffer = [0u8; BUFFER_SIZE];
     let mut hasher = Blake2b::default();
     let mut f = File::open(&path)?;
 
     loop {
-        match f.read(buffer)? {
+        match f.read(&mut buffer)? {
             0 => break,
             num => hasher.input(&buffer[..num]),
         }
@@ -64,7 +67,6 @@ fn main() {
     let args_slice = &args[1..];
     let mut hashes: HashMap<Vec<u8>, (u64, Vec<PathBuf>)> = HashMap::default();
     let mut sizes: HashMap<u64, Vec<PathBuf>> = HashMap::default();
-    let mut buffer = [0u8; BUFFER_SIZE];
 
     for argument in args_slice.iter() {
         let _ = list_dir(Path::new(&argument), |path, filesize| {
@@ -73,19 +75,19 @@ fn main() {
         });
     }
 
-    for (size, files) in sizes {
-        if files.len() > 1 {
-            // println!("Considering as duplicates (by size): {:?}", files);
-            for path in files {
-                if let Ok(digest) = hash_file(&path, &mut buffer) {
-                    let list = hashes.entry(digest).or_insert_with(|| (size, vec![]));
-                    list.1.push(path);
-                }
-            }
-        } else {
-            // debug:
-            // println!("{} {:?}", size, files);
-        }
+    let hashtriple: Vec<(u64, &PathBuf, Vec<u8>)> = sizes
+        .par_iter()
+        .filter(|&(_, files)| files.len() > 1)
+        .flat_map(|(size, files)| {
+            files
+                .into_par_iter()
+                .filter_map(move |path| hash_file(path).map(|digest| (*size, path, digest)).ok())
+        })
+        .collect();
+
+    for (size, path, digest) in hashtriple {
+        let list = hashes.entry(digest).or_insert_with(|| (size, vec![]));
+        list.1.push(path.to_path_buf());
     }
 
     let mut total = 0;
