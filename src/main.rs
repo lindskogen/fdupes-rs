@@ -1,15 +1,17 @@
 extern crate blake2;
+#[macro_use]
+extern crate clap;
 extern crate rayon;
 extern crate unbytify;
 extern crate walkdir;
 
 use std::io;
-use std::env;
 use std::io::prelude::*;
 use std::fs::File;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use clap::{App, Arg};
 use walkdir::{DirEntry, WalkDir};
 use unbytify::*;
 use blake2::{Blake2b, Digest};
@@ -46,14 +48,15 @@ fn is_file(entry: &DirEntry) -> bool {
     entry.file_type().is_file()
 }
 
-fn list_dir<F>(path: &Path, mut callback: F) -> io::Result<()>
+fn list_dir<F>(path: &Path, max_depth: usize, mut callback: F) -> io::Result<()>
 where
     F: FnMut(&Path, u64) -> (),
 {
     for file in WalkDir::new(path)
+        .max_depth(max_depth)
         .follow_links(false)
         .into_iter()
-        .filter_entry(|e| !is_hidden(e))
+        // .filter_entry(|e| !is_hidden(e))
         .filter_map(|e| e.ok())
         .filter(|e| is_file(e))
     {
@@ -63,13 +66,41 @@ where
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let args_slice = &args[1..];
+    let matches = App::new("fdupes-rs")
+        .version("1.0")
+        .author("Johan Lindskogen <johan.lindskogen@gmail.com>")
+        .about("Find duplicated files")
+        .arg(
+            Arg::with_name("summarize")
+                .short("m")
+                .long("summarize")
+                .help("Summarize size information"),
+        )
+        .arg(
+            Arg::with_name("max depth")
+                .short("d")
+                .long("depth")
+                .help("Max depth to recurse down in directories")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("FILE")
+                .help("Input files or folders")
+                .required(true)
+                .multiple(true)
+                .index(1),
+        )
+        .get_matches();
+
+    let files = matches.values_of("FILE").unwrap();
+    let max_depth = value_t!(matches.value_of("max depth"), usize).unwrap_or(::std::usize::MAX);
+    let summarize = matches.is_present("summarize");
+
     let mut hashes: HashMap<Vec<u8>, (u64, Vec<PathBuf>)> = HashMap::default();
     let mut sizes: HashMap<u64, Vec<PathBuf>> = HashMap::default();
 
-    for argument in args_slice.iter() {
-        let _ = list_dir(Path::new(&argument), |path, filesize| {
+    for argument in files {
+        let _ = list_dir(Path::new(&argument), max_depth, |path, filesize| {
             let list = sizes.entry(filesize).or_insert_with(|| vec![]);
             list.push(path.to_path_buf());
         });
@@ -106,7 +137,7 @@ fn main() {
         }
     }
 
-    if total > 0 {
+    if summarize {
         let (num, unit) = bytify(total);
         println!("Total: {} {} duplicated", num, unit);
     }
